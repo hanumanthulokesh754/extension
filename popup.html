@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sumly</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    width: 300px;
+    padding: 16px;
+    background: #f5f5ff;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .header img { width: 28px; height: 28px; border-radius: 6px; }
+  h3 { font-size: 16px; color: #2a2a8c; }
+  label {
+    display: block;
+    font-size: 12px;
+    color: #444;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  /* ── Custom searchable dropdown ── */
+  .lang-picker { position: relative; width: 100%; }
+
+  .lang-selected {
+    width: 100%;
+    padding: 8px 32px 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 13px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    transition: border-color 0.15s;
+  }
+  .lang-selected:hover { border-color: #4a4ae0; }
+  .lang-selected .arrow {
+    font-size: 10px;
+    color: #888;
+    position: absolute;
+    right: 10px;
+    transition: transform 0.2s;
+  }
+  .lang-picker.open .lang-selected { border-color: #4a4ae0; border-radius: 8px 8px 0 0; }
+  .lang-picker.open .arrow { transform: rotate(180deg); }
+
+  .lang-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    background: #fff;
+    border: 1px solid #4a4ae0;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    z-index: 999;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    max-height: 220px;
+    overflow: hidden;
+    flex-direction: column;
+  }
+  .lang-picker.open .lang-dropdown { display: flex; }
+
+  .lang-search-wrap {
+    padding: 7px 8px 6px;
+    border-bottom: 1px solid #eee;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .lang-search-wrap .search-icon { font-size: 13px; color: #aaa; flex-shrink: 0; }
+  #langSearch {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 12px;
+    color: #333;
+    background: transparent;
+  }
+  #langSearch::placeholder { color: #bbb; }
+
+  .lang-list {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .lang-list::-webkit-scrollbar { width: 4px; }
+  .lang-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+  .lang-group-label {
+    padding: 5px 10px 3px;
+    font-size: 10px;
+    font-weight: bold;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #f9f9ff;
+  }
+  .lang-option {
+    padding: 7px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #333;
+    transition: background 0.1s;
+  }
+  .lang-option:hover, .lang-option.highlighted { background: #efefff; color: #4a4ae0; }
+  .lang-option.selected { font-weight: bold; color: #4a4ae0; }
+  .lang-no-results {
+    padding: 12px;
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+    display: none;
+  }
+
+  /* hidden real select for value tracking */
+  #langSelect { display: none; }
+
+  button {
+    width: 100%;
+    padding: 11px;
+    margin-top: 14px;
+    background: linear-gradient(135deg, #4a4ae0, #7b5ea7);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button:disabled { opacity: 0.55; cursor: default; }
+  button:hover:not(:disabled) { opacity: 0.9; }
+  #status {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #555;
+    min-height: 16px;
+    text-align: center;
+    line-height: 1.4;
+  }
+  #status.error { color: #c0392b; }
+  #status.success { color: #27ae60; }
+  .progress-bar-wrap {
+    margin-top: 8px;
+    height: 4px;
+    background: #ddd;
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress-bar-wrap.visible { display: block; }
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4a4ae0, #7b5ea7);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+  .note {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #999;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <img src="icon48.png" alt="Sumly">
+  <h3>Sumly Translator</h3>
+</div>
+
+<label>Translate page to</label>
+
+<!-- Hidden real select (used by popup.js for value) -->
+<select id="langSelect"></select>
+
+<!-- Custom searchable picker -->
+<div class="lang-picker" id="langPicker">
+  <div class="lang-selected" id="langSelectedDisplay">
+    <span id="langSelectedText">🇺🇸 English</span>
+    <span class="arrow">▼</span>
+  </div>
+  <div class="lang-dropdown" id="langDropdown">
+    <div class="lang-search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="langSearch" placeholder="Search language..." autocomplete="off" spellcheck="false">
+    </div>
+    <div class="lang-list" id="langList"></div>
+    <div class="lang-no-results" id="langNoResults">No languages found</div>
+  </div>
+</div>
+
+<button id="translateBtn">Translate This Page</button>
+
+<div class="progress-bar-wrap" id="progressWrap">
+  <div class="progress-bar" id="progressBar"></div>
+</div>
+
+<div id="status"></div>
+<div class="note">The page text will be replaced in your preferred language.</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
